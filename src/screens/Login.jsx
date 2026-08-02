@@ -15,7 +15,7 @@ export default function Login({ role, settings, onBack, onSuccess }) {
   const isAdmin = role === 'ADMIN'
   const labels = isAdmin
     ? { title: '접수처 로그인', id: '아이디', key: '비밀번호', keyType: 'password', mode: 'text' }
-    : { title: '진행 FG 로그인', id: '성함', key: '학번', keyType: 'password', mode: 'numeric' }
+    : { title: '진행 FG 로그인', id: '성함', key: '학번', keyType: 'password', mode: 'text' }
 
   useEffect(() => {
     // 모바일에서 자동으로 키보드가 올라오면 오히려 불편해서 focus 만 줍니다
