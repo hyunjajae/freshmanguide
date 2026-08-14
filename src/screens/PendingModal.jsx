@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { lcLabel, lcRangeOfDay, formatPhone } from '../lib/format'
-import { Badge, Button, EmptyState, Modal } from '../components/UI'
+import { Button, Empty, Modal, Tag } from '../components/UI'
 
 export default function PendingModal({ open, onClose, roster, settings, showToast }) {
   const lcPerDay = settings.lc_per_day || 31
@@ -19,19 +19,15 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
     return list.filter((p) => p.lc >= min && p.lc <= max)
   }, [roster, day, lcPerDay])
 
-  // 선택 가능한 LC 목록
   // '전체' 일 때는 LC가 90개 넘게 쏟아져 오히려 보기 힘들어서, 일차를 고른 뒤에만 보여줍니다.
   const lcOptions = useMemo(
-    () =>
-      day === 'all'
-        ? []
-        : [...new Set(pendingByDay.map((p) => p.lc))].sort((a, b) => a - b),
+    () => (day === 'all' ? [] : [...new Set(pendingByDay.map((p) => p.lc))].sort((a, b) => a - b)),
     [pendingByDay, day]
   )
 
   const pending = useMemo(() => {
     const list = lc === 'all' ? pendingByDay : pendingByDay.filter((p) => p.lc === Number(lc))
-    return list.sort((a, b) => a.lc - b.lc || a.name.localeCompare(b.name, 'ko'))
+    return [...list].sort((a, b) => a.lc - b.lc || a.name.localeCompare(b.name, 'ko'))
   }, [pendingByDay, lc])
 
   // LC별로 묶어서 보여줍니다
@@ -48,7 +44,6 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
     const text = grouped
       .map(([lcNum, people]) => `[${lcLabel(lcNum)}] ${people.map((p) => p.name).join(', ')}`)
       .join('\n')
-
     try {
       await navigator.clipboard.writeText(text)
       showToast(`미접수자 ${pending.length}명을 복사했습니다.`, 'success')
@@ -58,10 +53,10 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
   }
 
   const downloadCsv = () => {
-    const header = '이름,LC,계열,학번,연락처\n'
+    const header = '이름,LC,계열,연락처\n'
     const body = pending
       .map((p) =>
-        [p.name, lcLabel(p.lc), p.dept || '', p.student_id || '', formatPhone(p.phone) || '']
+        [p.name, lcLabel(p.lc), p.dept || '', formatPhone(p.phone) || '']
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(',')
       )
@@ -79,50 +74,73 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="📋 미접수자" wide>
+    <Modal open={open} onClose={onClose} title="미접수자" wide>
       {/* 필터 ---------------------------------------------------------- */}
-      <div className="mb-4 space-y-2">
-        <div className="flex flex-wrap gap-1.5">
-          <FilterChip active={day === 'all'} onClick={() => { setDay('all'); setLc('all') }}>
+      <div className="stack-s" style={{ marginBottom: 18 }}>
+        <div className="chips">
+          <button
+            className={`chip ${day === 'all' ? 'is-on' : ''}`}
+            onClick={() => {
+              setDay('all')
+              setLc('all')
+            }}
+          >
             전체
-          </FilterChip>
+          </button>
           {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
-            <FilterChip
+            <button
               key={d}
-              active={day === String(d)}
-              onClick={() => { setDay(String(d)); setLc('all') }}
+              className={`chip ${day === String(d) ? 'is-on' : ''}`}
+              onClick={() => {
+                setDay(String(d))
+                setLc('all')
+              }}
             >
               {d}일차
-            </FilterChip>
+            </button>
           ))}
         </div>
 
         {lcOptions.length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            <FilterChip small active={lc === 'all'} onClick={() => setLc('all')}>
+          <div className="chips">
+            <button
+              className={`chip chip--sm ${lc === 'all' ? 'is-on' : ''}`}
+              onClick={() => setLc('all')}
+            >
               LC 전체
-            </FilterChip>
+            </button>
             {lcOptions.map((n) => (
-              <FilterChip key={n} small active={lc === String(n)} onClick={() => setLc(String(n))}>
+              <button
+                key={n}
+                className={`chip chip--sm ${lc === String(n) ? 'is-on' : ''}`}
+                onClick={() => setLc(String(n))}
+              >
                 {lcLabel(n)}
-              </FilterChip>
+              </button>
             ))}
           </div>
         )}
       </div>
 
       {/* 요약 + 내보내기 ------------------------------------------------ */}
-      <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+      <div
+        className="panel row"
+        style={{ justifyContent: 'space-between', marginBottom: 16, padding: '14px 18px' }}
+      >
         <div>
-          <span className="text-2xl font-bold tabular-nums text-slate-900">{pending.length}</span>
-          <span className="ml-1 text-sm font-semibold text-slate-500">명 미접수</span>
+          <span className="num" style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.03em' }}>
+            {pending.length}
+          </span>
+          <span style={{ marginLeft: 6, fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+            명 미접수
+          </span>
         </div>
         {pending.length > 0 && (
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="sm" onClick={copyList}>
+          <div className="row" style={{ gap: 6 }}>
+            <Button variant="ghost" size="sm" onClick={copyList}>
               복사
             </Button>
-            <Button variant="outline" size="sm" onClick={downloadCsv}>
+            <Button variant="ghost" size="sm" onClick={downloadCsv}>
               CSV
             </Button>
           </div>
@@ -131,45 +149,34 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
 
       {/* 목록 ---------------------------------------------------------- */}
       {pending.length === 0 ? (
-        <EmptyState icon="🎉" title="미접수자가 없습니다" description="전원 접수 완료되었습니다!" />
+        <Empty icon="check" title="미접수자가 없습니다" desc="전원 접수 완료되었습니다." />
       ) : (
-        <div className="space-y-3">
+        <div className="stack" style={{ gap: 16 }}>
           {grouped.map(([lcNum, people]) => (
-            <div key={lcNum} className="overflow-hidden rounded-xl ring-1 ring-slate-200">
-              <div className="flex items-center justify-between bg-slate-50 px-3.5 py-2">
-                <Badge color="blue">{lcLabel(lcNum)}</Badge>
-                <span className="text-xs font-bold text-slate-500">{people.length}명</span>
+            <section key={lcNum}>
+              <div className="section-head">
+                <span className="section-head__title">{lcLabel(lcNum)}</span>
+                <span className="section-head__count">{people.length}명</span>
               </div>
-              <div className="divide-y divide-slate-100 bg-white">
+              <div className="list">
                 {people.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between px-3.5 py-2.5">
-                    <span className="font-semibold text-slate-800">{p.name}</span>
-                    <span className="text-xs text-slate-400">
-                      {p.dept}
-                      {p.phone && <span className="ml-2 tabular-nums">{formatPhone(p.phone)}</span>}
+                  <div key={p.id} className="list__row">
+                    <span style={{ fontWeight: 700, fontSize: 15 }}>{p.name}</span>
+                    <span className="row-end" style={{ gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {p.dept && <Tag>{p.dept}</Tag>}
+                      {p.phone && (
+                        <span className="num" style={{ fontSize: 12.5, color: 'var(--text-soft)' }}>
+                          {formatPhone(p.phone)}
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}
     </Modal>
-  )
-}
-
-function FilterChip({ children, active, onClick, small = false }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg font-semibold transition ${small ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'} ${
-        active
-          ? 'bg-slate-900 text-white'
-          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

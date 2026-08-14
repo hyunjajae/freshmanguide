@@ -22,6 +22,7 @@ import Login from './screens/Login'
 import AdminScreen from './screens/AdminScreen'
 import FgScreen from './screens/FgScreen'
 import ManageScreen from './screens/ManageScreen'
+import ManagerGate from './screens/ManagerGate'
 
 const RESYNC_INTERVAL = 60_000 // 안전장치: 60초마다 전체 재확인
 
@@ -38,6 +39,10 @@ export default function App() {
   // 'role' | 'login' | 'main' | 'manage'
   const [screen, setScreen] = useState('role')
   const [pendingRole, setPendingRole] = useState(null)
+
+  // 관리 화면 전용 세션 (접수처 세션과 별개, 저장하지 않고 그때그때 확인)
+  const [managerSession, setManagerSession] = useState(null)
+  const [gateOpen, setGateOpen] = useState(false)
 
   const sessionRef = useRef(null)
   sessionRef.current = session
@@ -87,6 +92,8 @@ export default function App() {
       setSession(null)
       setRoster([])
       setPendingRole(null)
+      setManagerSession(null)
+      setGateOpen(false)
       setScreen('role')
       if (message) showToast(message, 'warn')
     },
@@ -210,17 +217,37 @@ export default function App() {
     setRoster((prev) => [...prev, participant])
   }, [])
 
+  // ── 운영자 확인 ───────────────────────────────────────────────────
+  // 관리 화면은 접수처 계정만으로는 못 들어갑니다. 별도 계정을 한 번 더 확인합니다.
+  const openManage = () => setGateOpen(true)
+
+  const handleGatePass = (managerSess) => {
+    setManagerSession(managerSess)
+    setGateOpen(false)
+    setScreen('manage')
+  }
+
+  const leaveManage = () => {
+    // 관리 화면을 나가면 운영자 세션도 정리합니다 (다음에 다시 물어보도록)
+    if (managerSession?.token) api.logout(managerSession.token).catch(() => {})
+    setManagerSession(null)
+    setScreen('main')
+  }
+
   // ── 렌더링 ────────────────────────────────────────────────────────
 
   if (!isConfigured) return <SetupNeeded />
 
   if (booting) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-400">
-        <Spinner className="h-8 w-8" />
+      <div className="loading" style={{ minHeight: '100dvh' }}>
+        <Spinner size={26} />
       </div>
     )
   }
+
+  // 운영자로 직접 로그인해도 접수 화면을 쓸 수 있게 합니다
+  const isDesk = session?.role === 'ADMIN' || session?.role === 'MANAGER'
 
   const shared = {
     session,
@@ -259,25 +286,27 @@ export default function App() {
         />
       )}
 
-      {screen === 'main' && session?.role === 'ADMIN' && (
-        <AdminScreen {...shared} onOpenManage={() => setScreen('manage')} />
-      )}
+      {screen === 'main' && isDesk && <AdminScreen {...shared} onOpenManage={openManage} />}
 
       {screen === 'main' && session?.role === 'FG' && <FgScreen {...shared} />}
 
-      {screen === 'manage' && session?.role === 'ADMIN' && (
-        <ManageScreen {...shared} onBack={() => setScreen('main')} />
+      {/* 관리 화면은 접수처 세션이 아니라 운영자 세션으로 동작합니다 */}
+      {screen === 'manage' && managerSession && (
+        <ManageScreen {...shared} session={managerSession} onBack={leaveManage} />
       )}
+
+      <ManagerGate
+        open={gateOpen}
+        onClose={() => setGateOpen(false)}
+        onSuccess={handleGatePass}
+        showToast={showToast}
+      />
     </>
   )
 }
 
-/** 인터넷이 끊겼을 때 화면 맨 위에 붙는 빨간 띠 */
+/** 인터넷이 끊겼을 때 화면 맨 위에 붙는 띠 */
 function OfflineBanner({ online }) {
   if (online) return null
-  return (
-    <div className="sticky top-0 z-40 bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white">
-      ⚠️ 인터넷 연결이 끊겼습니다 · 연결되면 자동으로 복구됩니다
-    </div>
-  )
+  return <div className="offline">인터넷 연결이 끊겼습니다 · 연결되면 자동으로 복구됩니다</div>
 }

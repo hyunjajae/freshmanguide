@@ -74,20 +74,17 @@ export function parseTable(text) {
  * 헤더 이름을 보고 어떤 열이 무엇인지 자동으로 추측합니다.
  * 구글폼 질문 제목이 조금씩 달라도 알아서 찾아냅니다.
  */
-// 주의: 순서가 중요합니다. '학번'이 '번호'보다 먼저 잡혀야
-//       "학번" 열이 연락처로 잘못 인식되지 않습니다.
 const COLUMN_HINTS = {
   name: ['이름', '성함', '성명', 'name'],
-  studentId: ['학번', '학생번호', 'studentid', 'student_id', '학번(10자리)'],
   lc: ['lc', '엘씨', '조', '팀'],
   phone: ['연락처', '전화', '휴대', '핸드폰', '번호', 'phone', 'tel'],
   dept: ['계열', '학과', '전공', '단과', 'dept', 'major'],
 }
 
-const FIELD_ORDER = ['name', 'studentId', 'lc', 'phone', 'dept']
+const FIELD_ORDER = ['name', 'lc', 'phone', 'dept']
 
 export function guessColumns(header) {
-  const result = { name: -1, phone: -1, lc: -1, dept: -1, studentId: -1 }
+  const result = { name: -1, phone: -1, lc: -1, dept: -1 }
   const used = new Set()
 
   for (const field of FIELD_ORDER) {

@@ -36,15 +36,12 @@ export function analyze(rows, cols, maxLc) {
     const lcRaw = clean(cols.lc >= 0 ? row[cols.lc] : '')
     const lc = parseInt(String(lcRaw).replace(/[^0-9]/g, ''), 10)
     const dept = clean(cols.dept >= 0 ? row[cols.dept] : '')
-    // 학번은 숫자만 남깁니다 (엑셀에서 따옴표나 공백이 섞여 들어오는 경우가 많음)
-    const studentId = clean(cols.studentId >= 0 ? row[cols.studentId] : '').replace(/[^0-9]/g, '')
 
     return {
       key: `row-${index}`,
       sourceLine: index + 2, // 원본 파일 기준 줄 번호 (헤더 1줄 가정)
       name,
       phone,
-      studentId,
       displayPhone: phone ? formatPhone(phone) : '(없음)',
       lc: Number.isFinite(lc) ? lc : null,
       dept,
@@ -59,7 +56,7 @@ export function analyze(rows, cols, maxLc) {
   const autoRemoved = []
 
   for (const item of items) {
-    const fullKey = [item.name, item.phone, item.studentId, item.lc, item.dept].join('|')
+    const fullKey = [item.name, item.phone, item.lc, item.dept].join('|')
     if (seen.has(fullKey)) {
       autoRemoved.push(item)
     } else {
@@ -79,17 +76,12 @@ export function analyze(rows, cols, maxLc) {
 
   // 4) 중복 의심 검사 (Map 으로 한 번에 — 인원이 많아도 빠릅니다) ------
   const byPhone = new Map()
-  const byStudentId = new Map()
   const byNameLcDept = new Map()
 
   for (const item of kept) {
     if (item.phone) {
       if (!byPhone.has(item.phone)) byPhone.set(item.phone, [])
       byPhone.get(item.phone).push(item)
-    }
-    if (item.studentId) {
-      if (!byStudentId.has(item.studentId)) byStudentId.set(item.studentId, [])
-      byStudentId.get(item.studentId).push(item)
     }
     if (item.name && item.lc !== null) {
       const k = `${item.name}|${item.lc}|${item.dept}`
@@ -99,14 +91,6 @@ export function analyze(rows, cols, maxLc) {
   }
 
   const dupGroups = []
-
-  // 학번이 같으면 같은 사람일 가능성이 가장 높습니다
-  for (const [sid, group] of byStudentId) {
-    if (group.length > 1) {
-      dupGroups.push({ reason: `학번 중복 (${sid})`, members: group })
-      group.forEach((it) => it.reasons.push('학번 중복'))
-    }
-  }
 
   for (const [phone, group] of byPhone) {
     if (group.length > 1) {
@@ -163,7 +147,6 @@ export function toUploadRows(items) {
     name: it.name,
     chosung: it.chosung,
     phone: it.phone || '',
-    studentId: it.studentId || '',
     lc: String(it.lc),
     dept: it.dept || '',
   }))

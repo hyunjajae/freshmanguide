@@ -47,12 +47,11 @@ export const checkIn = (token, id) =>
 export const undoCheckIn = (token, id) =>
   rpc('app_undo_check_in', { p_token: token, p_id: id })
 
-export const addWalkin = (token, { name, phone, studentId, lc, dept, checkInNow }) =>
+export const addWalkin = (token, { name, phone, lc, dept, checkInNow }) =>
   rpc('app_add_walkin', {
     p_token: token,
     p_name: name,
     p_phone: phone,
-    p_student_id: studentId || null,
     p_lc: lc,
     p_dept: dept,
     p_check_in: checkInNow,

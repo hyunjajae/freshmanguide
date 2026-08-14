@@ -1,170 +1,231 @@
 // 여러 화면에서 공통으로 쓰는 작은 부품들
+// 스타일은 전부 styles.css 에 있고, 여기서는 클래스 이름만 붙입니다.
 
-import { forwardRef, useEffect } from 'react'
+import { forwardRef, useEffect, useRef } from 'react'
 
-/** 로딩 스피너 */
-export function Spinner({ className = 'h-5 w-5' }) {
+/* ---------- 아이콘 ----------
+   외부 아이콘 라이브러리를 쓰지 않고 필요한 것만 직접 그렸습니다. */
+export const Icon = {
+  chevronRight: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M7.5 4.5 13 10l-5.5 5.5" />
+    </svg>
+  ),
+  chevronLeft: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12.5 4.5 7 10l5.5 5.5" />
+    </svg>
+  ),
+  close: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" {...p}>
+      <path d="M5 5l10 10M15 5L5 15" />
+    </svg>
+  ),
+  search: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
+         strokeLinecap="round" {...p}>
+      <circle cx="9" cy="9" r="5.5" />
+      <path d="M13.2 13.2 17 17" />
+    </svg>
+  ),
+  refresh: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M16.5 8.5A6.5 6.5 0 1 0 16 12" />
+      <path d="M16.8 4.5v4h-4" />
+    </svg>
+  ),
+  settings: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9 4.5 4.5" />
+    </svg>
+  ),
+  plus: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" {...p}>
+      <path d="M10 4.5v11M4.5 10h11" />
+    </svg>
+  ),
+  clipboard: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M7.5 3.5h5v2h-5z" />
+      <path d="M12.5 4.5h2.5v12H5v-12h2.5" />
+      <path d="M7.8 9.5h4.4M7.8 12.5h3" />
+    </svg>
+  ),
+  chart: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"
+         strokeLinecap="round" {...p}>
+      <path d="M4 16V9M10 16V4M16 16v-5" />
+    </svg>
+  ),
+  file: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M11.5 2.5H5v15h10V6z" />
+      <path d="M11.5 2.5V6H15" />
+    </svg>
+  ),
+  check: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+    </svg>
+  ),
+  user: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+         strokeLinecap="round" {...p}>
+      <circle cx="10" cy="7" r="3" />
+      <path d="M4 17c0-3.2 2.7-5 6-5s6 1.8 6 5" />
+    </svg>
+  ),
+  inbox: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M2.5 12h4l1 2h5l1-2h4" />
+      <path d="M4.6 3.5h10.8l2.1 8.5v4.5H2.5V12z" />
+    </svg>
+  ),
+  plug: (p) => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+         strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M7 2.5v4M13 2.5v4M4.5 6.5h11v3a5.5 5.5 0 0 1-11 0z" />
+      <path d="M10 15v2.5" />
+    </svg>
+  ),
+}
+
+/* ---------- 로딩 ---------- */
+export function Spinner({ size = 18 }) {
   return (
-    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-90"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
-      />
+    <svg className="spin" width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".18" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   )
 }
 
-/** 버튼 */
+/* ---------- 버튼 ---------- */
 export function Button({
   children,
-  variant = 'primary',
-  size = 'md',
+  variant = 'solid',
+  size,
   loading = false,
+  block = false,
   className = '',
   ...props
 }) {
-  const base =
-    'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition ' +
-    'active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ' +
-    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400'
-
-  const variants = {
-    primary: 'bg-slate-900 text-white hover:bg-slate-800',
-    blue: 'bg-blue-600 text-white hover:bg-blue-700',
-    green: 'bg-emerald-600 text-white hover:bg-emerald-700',
-    red: 'bg-red-600 text-white hover:bg-red-700',
-    outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-    ghost: 'text-slate-600 hover:bg-slate-100',
-  }
-
-  // 손가락으로 누르는 화면이라 버튼을 넉넉하게 잡았습니다 (최소 44px 높이 권장)
-  const sizes = {
-    sm: 'px-4 py-2.5 text-[15px]',
-    md: 'px-5 py-3.5 text-[17px]',
-    lg: 'px-6 py-4 text-lg',
-  }
+  const cls = [
+    'btn',
+    `btn--${variant}`,
+    size ? `btn--${size}` : '',
+    block ? 'btn--block' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <button
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={loading || props.disabled}
-      {...props}
-    >
-      {loading && <Spinner className="h-4 w-4" />}
+    <button className={cls} disabled={loading || props.disabled} {...props}>
+      {loading && <Spinner size={15} />}
       {children}
     </button>
   )
 }
 
-/** 입력창 (부모가 focus() 를 걸 수 있도록 ref 를 전달받습니다) */
-export const Input = forwardRef(function Input({ label, hint, className = '', ...props }, ref) {
+/* ---------- 입력 ---------- */
+export const Input = forwardRef(function Input(
+  { label, hint, error, required, className = '', ...props },
+  ref
+) {
   return (
-    <label className="block">
+    <label className="field">
       {label && (
-        <span className="mb-2 block text-[15px] font-semibold text-slate-700">{label}</span>
+        <span className="field__label">
+          {label}
+          {required && <span> *</span>}
+        </span>
       )}
-      <input
-        ref={ref}
-        // 글자 크기를 16px 미만으로 하면 아이폰에서 입력할 때 화면이 확대됩니다
-        className={
-          'w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-[17px] ' +
-          'placeholder:text-slate-400 focus:border-slate-900 focus:outline-none ' +
-          'focus:ring-2 focus:ring-slate-900/10 ' +
-          className
-        }
-        {...props}
-      />
-      {hint && <span className="mt-1.5 block text-[13px] text-slate-500">{hint}</span>}
+      <input ref={ref} className={`input ${className}`} {...props} />
+      {error ? (
+        <span className="field__error">{error}</span>
+      ) : (
+        hint && <span className="field__hint">{hint}</span>
+      )}
     </label>
   )
 })
 
-/** 진행률 막대 */
-export function ProgressBar({ value, className = '' }) {
+/* ---------- 태그 ---------- */
+export function Tag({ children, tone }) {
+  return <span className={`tag ${tone ? `tag--${tone}` : ''}`}>{children}</span>
+}
+
+/* ---------- 진행률 ---------- */
+export function Meter({ value, onDark = false }) {
   const v = Math.max(0, Math.min(100, value))
-  const color = v >= 100 ? 'bg-emerald-500' : v >= 60 ? 'bg-blue-500' : 'bg-amber-500'
   return (
-    <div className={`h-2 w-full overflow-hidden rounded-full bg-slate-200 ${className}`}>
-      <div
-        className={`h-full rounded-full transition-all duration-500 ${color}`}
-        style={{ width: `${v}%` }}
-      />
+    <div className={`meter ${onDark ? 'meter--onDark' : ''}`}>
+      <div className="meter__fill" style={{ width: `${v}%` }} />
     </div>
   )
 }
 
-/** 모달 (팝업 창) */
+/* ---------- 빈 상태 ---------- */
+export function Empty({ icon = 'inbox', title, desc }) {
+  const Mark = Icon[icon] || Icon.inbox
+  return (
+    <div className="empty">
+      <div className="empty__mark">
+        <Mark />
+      </div>
+      <p className="empty__title">{title}</p>
+      {desc && <p className="empty__desc">{desc}</p>}
+    </div>
+  )
+}
+
+/* ---------- 모달 ---------- */
 export function Modal({ open, onClose, title, children, wide = false }) {
-  // 모달이 열려 있을 때 뒤쪽 화면이 스크롤되지 않도록
+  // onClose 는 렌더마다 새로 만들어지므로 ref 에 담아두고,
+  // 효과는 open 이 바뀔 때만 실행되게 합니다.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
   useEffect(() => {
     if (!open) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && closeRef.current()
     window.addEventListener('keydown', onKey)
 
     return () => {
       document.body.style.overflow = prev
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" onClick={onClose} />
-      <div
-        className={`animate-slide-up relative flex max-h-[90vh] w-full flex-col overflow-hidden
-                    rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl
-                    ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="닫기"
-          >
-            <svg className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
+    <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="modal__veil" onClick={onClose} />
+      <div className={`modal__panel ${wide ? 'modal__panel--wide' : ''}`}>
+        <div className="modal__head">
+          <h2 className="modal__title">{title}</h2>
+          <button className="modal__close" onClick={onClose} aria-label="닫기">
+            <Icon.close />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="modal__body">{children}</div>
       </div>
     </div>
-  )
-}
-
-/** 비어 있을 때 보여주는 안내 */
-export function EmptyState({ icon = '📭', title, description }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="mb-3 text-5xl">{icon}</div>
-      <p className="text-lg font-bold text-slate-700">{title}</p>
-      {description && <p className="mt-1.5 text-[15px] text-slate-500">{description}</p>}
-    </div>
-  )
-}
-
-/** 작은 상태 뱃지 */
-export function Badge({ children, color = 'slate' }) {
-  const colors = {
-    slate: 'bg-slate-100 text-slate-600',
-    green: 'bg-emerald-100 text-emerald-700',
-    red: 'bg-red-100 text-red-700',
-    amber: 'bg-amber-100 text-amber-700',
-    blue: 'bg-blue-100 text-blue-700',
-  }
-  return (
-    <span
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[13px] font-semibold ${colors[color]}`}
-    >
-      {children}
-    </span>
   )
 }

@@ -4,9 +4,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../lib/api'
-import { parseTable, looksLikeHeader } from '../lib/csv'
+import { parseTable } from '../lib/csv'
 import { lcLabel } from '../lib/format'
-import { Badge, Button, EmptyState, Input, Spinner } from '../components/UI'
+import { Button, Empty, Input, Spinner, Tag } from '../components/UI'
 
 export default function AccountsPanel({ session, settings, onError, showToast }) {
   const [accounts, setAccounts] = useState(null)
@@ -37,21 +37,24 @@ export default function AccountsPanel({ session, settings, onError, showToast })
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16 text-slate-300">
-        <Spinner className="h-7 w-7" />
+      <div className="loading">
+        <Spinner size={26} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex gap-1.5">
-        <TabChip active={tab === 'list'} onClick={() => setTab('list')}>
+    <div className="stack" style={{ gap: 22 }}>
+      <div className="chips">
+        <button className={`chip ${tab === 'list' ? 'is-on' : ''}`} onClick={() => setTab('list')}>
           계정 목록
-        </TabChip>
-        <TabChip active={tab === 'upload'} onClick={() => setTab('upload')}>
+        </button>
+        <button
+          className={`chip ${tab === 'upload' ? 'is-on' : ''}`}
+          onClick={() => setTab('upload')}
+        >
           FG 일괄 등록
-        </TabChip>
+        </button>
       </div>
 
       {tab === 'list' ? (
@@ -89,10 +92,11 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
   const filteredFgs = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return fgs
+    const digits = q.replace(/[^0-9]/g, '')
     return fgs.filter(
       (a) =>
         a.login_id.toLowerCase().includes(q) ||
-        (a.lcs || []).some((lc) => String(lc) === q.replace(/[^0-9]/g, ''))
+        (digits && (a.lcs || []).some((lc) => String(lc) === digits))
     )
   }, [fgs, search])
 
@@ -139,130 +143,133 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
     }
   }
 
+  const isAdmin = form.role === 'ADMIN'
+
   return (
-    <div className="space-y-6">
-      {/* 추가 / 수정 폼 -------------------------------------------------- */}
-      <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h4 className="mb-3 text-sm font-bold text-slate-800">계정 추가 / 비밀번호 변경</h4>
+    <div className="stack" style={{ gap: 26 }}>
+      {/* 추가 / 수정 -------------------------------------------------- */}
+      <form className="card" onSubmit={submit}>
+        <div className="card__body stack" style={{ gap: 16 }}>
+          <div className="section-head" style={{ margin: 0 }}>
+            <span className="section-head__title">계정 추가 · 비밀번호 변경</span>
+          </div>
 
-        <div className="mb-3 flex gap-1.5">
-          {['ADMIN', 'FG'].map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, role: r }))}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                form.role === r ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {r === 'ADMIN' ? '접수처' : '진행 FG'}
-            </button>
-          ))}
-        </div>
+          <div className="chips">
+            {['ADMIN', 'FG'].map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`chip ${form.role === r ? 'is-on' : ''}`}
+                onClick={() => setForm((f) => ({ ...f, role: r }))}
+              >
+                {r === 'ADMIN' ? '접수처' : '진행 FG'}
+              </button>
+            ))}
+          </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            label={form.role === 'ADMIN' ? '아이디' : '성함'}
-            value={form.loginId}
-            onChange={(e) => setForm((f) => ({ ...f, loginId: e.target.value }))}
-            autoComplete="off"
-            className="!py-2.5 !text-sm"
-          />
-          <Input
-            label={form.role === 'ADMIN' ? '비밀번호' : '학번'}
-            value={form.loginKey}
-            onChange={(e) => setForm((f) => ({ ...f, loginKey: e.target.value }))}
-            autoComplete="off"
-            className="!py-2.5 !text-sm"
-          />
-        </div>
+          <div className="grid-2">
+            <Input
+              label={isAdmin ? '아이디' : '성함'}
+              value={form.loginId}
+              onChange={(e) => setForm((f) => ({ ...f, loginId: e.target.value }))}
+              autoComplete="off"
+            />
+            <Input
+              label={isAdmin ? '비밀번호' : '학번'}
+              value={form.loginKey}
+              onChange={(e) => setForm((f) => ({ ...f, loginKey: e.target.value }))}
+              autoComplete="off"
+              inputMode={isAdmin ? 'text' : 'numeric'}
+            />
+          </div>
 
-        {form.role === 'FG' && (
-          <div className="mt-3">
+          {!isAdmin && (
             <Input
               label="담당 LC"
               value={form.lcs}
               onChange={(e) => setForm((f) => ({ ...f, lcs: e.target.value }))}
               placeholder="1, 2, 3"
               hint={`쉼표나 띄어쓰기로 구분해서 입력하세요 (1 ~ ${maxLc})`}
-              className="!py-2.5 !text-sm"
             />
-          </div>
-        )}
+          )}
 
-        <p className="mt-3 text-xs text-slate-500">
-          이미 있는 아이디를 입력하면 비밀번호와 담당 LC가 <b>덮어쓰기</b> 됩니다.
-        </p>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+            이미 있는 아이디를 입력하면 비밀번호와 담당 LC가 <b>덮어쓰기</b> 됩니다.
+          </p>
 
-        <Button type="submit" loading={saving} className="mt-3 w-full">
-          저장
-        </Button>
+          <Button type="submit" variant="solid" block loading={saving}>
+            저장
+          </Button>
+        </div>
       </form>
 
-      {/* 관리자 목록 ------------------------------------------------------ */}
+      {/* 관리자 -------------------------------------------------------- */}
       <section>
-        <h4 className="mb-2 text-sm font-bold text-slate-800">접수처 계정 ({admins.length})</h4>
-        <div className="overflow-hidden rounded-xl ring-1 ring-slate-200">
+        <div className="section-head">
+          <span className="section-head__title">접수처 계정</span>
+          <span className="section-head__count">{admins.length}</span>
+        </div>
+        <div className="list">
           {admins.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3 last:border-b-0"
-            >
-              <span className="font-semibold text-slate-800">{a.login_id}</span>
-              <button
-                onClick={() => remove(a)}
-                className="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-              >
-                삭제
-              </button>
+            <div key={a.id} className="list__row">
+              <span style={{ fontWeight: 700 }}>{a.login_id}</span>
+              <span className="row-end">
+                <Button variant="danger-quiet" size="sm" onClick={() => remove(a)}>
+                  삭제
+                </Button>
+              </span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* FG 목록 ---------------------------------------------------------- */}
+      {/* FG ------------------------------------------------------------ */}
       <section>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h4 className="shrink-0 text-sm font-bold text-slate-800">FG 계정 ({fgs.length})</h4>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="이름 또는 LC 검색"
-            className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-900 focus:outline-none"
-          />
+        <div className="section-head">
+          <span className="section-head__title">FG 계정</span>
+          <span className="section-head__count">{fgs.length}</span>
         </div>
 
+        {fgs.length > 6 && (
+          <input
+            className="input"
+            style={{ marginBottom: 10 }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="이름 또는 LC 번호로 찾기"
+            aria-label="FG 계정 검색"
+          />
+        )}
+
         {filteredFgs.length === 0 ? (
-          <EmptyState icon="👥" title="등록된 FG 계정이 없습니다" description="'FG 일괄 등록' 탭에서 한 번에 넣을 수 있습니다" />
+          <Empty
+            icon="user"
+            title={fgs.length === 0 ? '등록된 FG 계정이 없습니다' : '검색 결과가 없습니다'}
+            desc={fgs.length === 0 ? 'FG 일괄 등록 탭에서 한 번에 넣을 수 있습니다.' : undefined}
+          />
         ) : (
-          <div className="max-h-96 overflow-y-auto rounded-xl ring-1 ring-slate-200">
+          <div className="list scroll-box--tall" style={{ overflowY: 'auto' }}>
             {filteredFgs.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <div className="font-semibold text-slate-800">{a.login_id}</div>
-                  <div className="mt-1 flex flex-wrap gap-1">
+              <div key={a.id} className="list__row" style={{ alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>{a.login_id}</div>
+                  <div className="row" style={{ gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                     {(a.lcs || []).length === 0 ? (
-                      <Badge color="red">담당 LC 없음</Badge>
+                      <Tag tone="bad">담당 LC 없음</Tag>
                     ) : (
                       [...a.lcs]
                         .sort((x, y) => x - y)
                         .map((lc) => (
-                          <Badge key={lc} color="slate">
+                          <Tag key={lc} tone="accent">
                             {lcLabel(lc)}
-                          </Badge>
+                          </Tag>
                         ))
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => remove(a)}
-                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                >
+                <Button variant="danger-quiet" size="sm" onClick={() => remove(a)}>
                   삭제
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -286,7 +293,6 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
     if (table.length === 0) return null
 
     const rows = looksLikeHeaderFg(table[0]) ? table.slice(1) : table
-
     const items = []
     const errors = []
 
@@ -305,9 +311,7 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
         errors.push(`${i + 1}번째 줄: 이름 또는 학번이 비어 있음`)
         return
       }
-      if (lcs.length === 0) {
-        errors.push(`${i + 1}번째 줄 (${name}): 담당 LC 없음`)
-      }
+      if (lcs.length === 0) errors.push(`${i + 1}번째 줄 (${name}): 담당 LC 없음`)
 
       items.push({ login_id: name, login_key: key, lcs: lcs.map(String) })
     })
@@ -316,9 +320,7 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
   }, [raw, maxLc])
 
   const upload = async () => {
-    if (!parsed || parsed.items.length === 0) {
-      return showToast('등록할 데이터가 없습니다.', 'warn')
-    }
+    if (!parsed || parsed.items.length === 0) return showToast('등록할 데이터가 없습니다.', 'warn')
     if (replace && !window.confirm('기존 FG 계정을 모두 지우고 새로 등록합니다. 계속할까요?')) return
 
     setSaving(true)
@@ -336,51 +338,59 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm leading-relaxed text-blue-900">
+    <div className="stack" style={{ gap: 18 }}>
+      <p className="note note--info">
         <b>성함 · 학번 · 담당 LC</b> 순서로 된 표를 붙여넣으세요. 담당 LC가 여러 개면 열을 나눠 쓰거나
-        한 칸에 <code className="rounded bg-white/60 px-1">1,2,3</code> 처럼 적어도 됩니다.
-      </div>
+        한 칸에 <span className="kbd">1,2,3</span> 처럼 적어도 됩니다.
+      </p>
 
       <textarea
+        className="textarea"
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
         rows={10}
-        placeholder={'성함\t학번\t담당LC\n홍길동\t20240001\t1,2\n김철수\t20240002\t3'}
-        className="w-full rounded-xl border border-slate-300 p-3 font-mono text-xs
-                   focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+        placeholder={'성함\t학번\t담당LC\n홍길동\t2024000001\t1,2\n김철수\t2024000002\t3'}
       />
 
       {parsed && (
         <>
-          <div className="rounded-xl bg-slate-50 px-4 py-3">
-            <p className="text-sm font-bold text-slate-800">
-              {parsed.items.length}명 인식됨
-            </p>
+          <div className="panel">
+            <div className="section-head__title">{parsed.items.length}명 인식됨</div>
             {parsed.errors.length > 0 && (
-              <ul className="mt-2 max-h-32 space-y-0.5 overflow-y-auto text-xs text-amber-700">
+              <ul
+                className="scroll-box"
+                style={{
+                  margin: '10px 0 0',
+                  padding: 0,
+                  listStyle: 'none',
+                  maxHeight: 130,
+                  fontSize: 13,
+                  color: 'var(--warn)',
+                  lineHeight: 1.8,
+                }}
+              >
                 {parsed.errors.map((e, i) => (
-                  <li key={i}>⚠️ {e}</li>
+                  <li key={i}>· {e}</li>
                 ))}
               </ul>
             )}
           </div>
 
-          <div className="max-h-56 overflow-y-auto rounded-xl ring-1 ring-slate-200">
+          <div className="list scroll-box" style={{ overflowY: 'auto' }}>
             {parsed.items.slice(0, 100).map((it, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-3.5 py-2 text-sm last:border-b-0"
-              >
-                <span className="font-semibold text-slate-800">{it.login_id}</span>
-                <span className="flex flex-wrap justify-end gap-1">
+              <div key={i} className="list__row">
+                <span style={{ fontWeight: 700 }}>{it.login_id}</span>
+                <span
+                  className="row-end"
+                  style={{ gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}
+                >
                   {it.lcs.length === 0 ? (
-                    <Badge color="red">LC 없음</Badge>
+                    <Tag tone="bad">LC 없음</Tag>
                   ) : (
                     it.lcs.map((lc) => (
-                      <Badge key={lc} color="slate">
+                      <Tag key={lc} tone="accent">
                         {lcLabel(lc)}
-                      </Badge>
+                      </Tag>
                     ))
                   )}
                 </span>
@@ -388,19 +398,19 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
             ))}
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-red-50 px-4 py-3">
+          <label className={`check is-danger ${replace ? 'is-on' : ''}`}>
             <input
               type="checkbox"
               checked={replace}
               onChange={(e) => setReplace(e.target.checked)}
-              className="h-4 w-4 accent-red-600"
             />
-            <span className="text-sm font-semibold text-red-800">
-              기존 FG 계정을 모두 지우고 새로 등록 (접수처 계정은 유지)
+            <span>
+              <span className="check__title">기존 FG 계정을 모두 지우고 새로 등록</span>
+              <span className="check__desc">접수처 계정은 그대로 유지됩니다.</span>
             </span>
           </label>
 
-          <Button variant={replace ? 'red' : 'primary'} loading={saving} onClick={upload} className="w-full">
+          <Button variant={replace ? 'danger' : 'solid'} block loading={saving} onClick={upload}>
             {parsed.items.length}건 등록
           </Button>
         </>
@@ -413,17 +423,4 @@ function FgUpload({ session, maxLc, onDone, onError, showToast }) {
 function looksLikeHeaderFg(row) {
   const joined = row.join('').toLowerCase().replace(/\s/g, '')
   return ['성함', '이름', '학번', 'lc', '담당'].some((h) => joined.includes(h))
-}
-
-function TabChip({ children, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
-        active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-      }`}
-    >
-      {children}
-    </button>
-  )
 }

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { lcLabel, dayOfLc, percent } from '../lib/format'
-import { Modal, ProgressBar, Spinner } from '../components/UI'
+import { Meter, Modal, Spinner } from '../components/UI'
 
 const REFRESH_MS = 15_000 // 통계 창이 떠 있는 동안만 15초마다 갱신
 
@@ -17,7 +17,6 @@ export default function StatsModal({ open, onClose, session, settings, onError }
 
   useEffect(() => {
     if (!open) return
-
     let alive = true
 
     const load = async (showSpinner) => {
@@ -64,39 +63,41 @@ export default function StatsModal({ open, onClose, session, settings, onError }
 
   const grand = useMemo(
     () =>
-      byDay.reduce(
-        (acc, d) => ({ total: acc.total + d.total, done: acc.done + d.done }),
-        { total: 0, done: 0 }
-      ),
+      byDay.reduce((acc, d) => ({ total: acc.total + d.total, done: acc.done + d.done }), {
+        total: 0,
+        done: 0,
+      }),
     [byDay]
   )
 
   return (
-    <Modal open={open} onClose={onClose} title="📊 실시간 통계" wide>
+    <Modal open={open} onClose={onClose} title="실시간 통계" wide>
       {loading && !rows ? (
-        <div className="flex justify-center py-16 text-slate-300">
-          <Spinner className="h-7 w-7" />
+        <div className="loading">
+          <Spinner size={26} />
         </div>
       ) : !rows || rows.length === 0 ? (
-        <p className="py-12 text-center text-sm text-slate-500">아직 명단이 없습니다.</p>
+        <p style={{ padding: '48px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+          아직 명단이 없습니다.
+        </p>
       ) : (
-        <div className="space-y-5">
+        <div className="stack" style={{ gap: 20 }}>
           {/* 전체 요약 -------------------------------------------------- */}
-          <div className="rounded-2xl bg-slate-900 p-5 text-white">
-            <div className="flex items-end justify-between">
-              <span className="text-sm font-semibold text-slate-300">전체 접수율</span>
-              <span className="text-3xl font-bold tabular-nums">
+          <div className="stat-hero">
+            <div
+              className="row"
+              style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}
+            >
+              <span className="stat-hero__label">전체 접수율</span>
+              <span className="stat-hero__value">
                 {percent(grand.done, grand.total)}
-                <span className="text-lg">%</span>
+                <small>%</small>
               </span>
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-all duration-500"
-                style={{ width: `${percent(grand.done, grand.total)}%` }}
-              />
+            <div style={{ marginTop: 14 }}>
+              <Meter value={percent(grand.done, grand.total)} onDark />
             </div>
-            <div className="mt-2 text-sm tabular-nums text-slate-300">
+            <div className="stat-hero__count">
               {grand.done.toLocaleString()} / {grand.total.toLocaleString()}명
             </div>
           </div>
@@ -105,32 +106,37 @@ export default function StatsModal({ open, onClose, session, settings, onError }
           {byDay.map((d) => {
             const p = percent(d.done, d.total)
             return (
-              <div key={d.day} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                <div className="mb-2 flex items-baseline justify-between">
-                  <span className="font-bold text-slate-900">{d.day}일차</span>
-                  <span className="text-sm font-bold tabular-nums text-slate-600">
+              <div key={d.day} className="panel">
+                <div
+                  className="row"
+                  style={{ justifyContent: 'space-between', alignItems: 'baseline' }}
+                >
+                  <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-.02em' }}>
+                    {d.day}일차
+                  </span>
+                  <span className="num" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-soft)' }}>
                     {d.done} / {d.total}
-                    <span className="ml-1.5 text-emerald-600">{p}%</span>
+                    <span style={{ color: 'var(--accent)', marginLeft: 8 }}>{p}%</span>
                   </span>
                 </div>
 
-                <ProgressBar value={p} className="mb-3" />
+                <div style={{ margin: '12px 0 16px' }}>
+                  <Meter value={p} />
+                </div>
 
-                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-6">
+                <div className="lc-grid">
                   {d.lcs.map((r) => {
                     const lp = percent(r.done, r.total)
-                    const complete = lp >= 100
                     return (
                       <div
                         key={r.lc}
-                        className={`rounded-lg px-2 py-1.5 text-center text-[11px] font-semibold tabular-nums
-                                    ${complete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+                        className={`lc-cell ${lp >= 100 ? 'is-full' : ''}`}
                         title={`${lcLabel(r.lc)} · ${lp}%`}
                       >
-                        <div className="text-[10px] opacity-60">{lcLabel(r.lc)}</div>
-                        <div>
+                        <i>{lcLabel(r.lc)}</i>
+                        <b>
                           {r.done}/{r.total}
-                        </div>
+                        </b>
                       </div>
                     )
                   })}
@@ -140,7 +146,7 @@ export default function StatsModal({ open, onClose, session, settings, onError }
           })}
 
           {updatedAt && (
-            <p className="text-center text-xs text-slate-400">
+            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}>
               {updatedAt.toLocaleTimeString('ko-KR', { hour12: false })} 기준 · 15초마다 자동 갱신
             </p>
           )}

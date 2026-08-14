@@ -5,7 +5,7 @@ import * as api from '../lib/api'
 import { isValidPhone, normalizePhone, dayOfLc, lcLabel } from '../lib/format'
 import { Button, Input, Modal } from '../components/UI'
 
-const EMPTY = { name: '', phone: '', lc: '', dept: '', studentId: '', checkInNow: true }
+const EMPTY = { name: '', phone: '', lc: '', dept: '', checkInNow: true }
 
 export default function WalkinModal({
   open,
@@ -32,7 +32,10 @@ export default function WalkinModal({
   const day = lcValid ? dayOfLc(lcNum, lcPerDay) : null
 
   const set = (key) => (e) =>
-    setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+    setForm((f) => ({
+      ...f,
+      [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+    }))
 
   const submit = async (e) => {
     e.preventDefault()
@@ -49,7 +52,6 @@ export default function WalkinModal({
       const res = await api.addWalkin(session.token, {
         name: form.name.trim(),
         phone: normalizePhone(form.phone),
-        studentId: form.studentId.replace(/[^0-9]/g, ''),
         lc: lcNum,
         dept: form.dept.trim(),
         checkInNow: form.checkInNow,
@@ -74,15 +76,15 @@ export default function WalkinModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="➕ 현장 등록">
-      <form onSubmit={submit} className="space-y-4">
-        <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
-          명단에 없는 참가자를 추가합니다. 등록된 인원은 명단에{' '}
-          <b>&lsquo;현장&rsquo;</b> 표시가 붙습니다.
+    <Modal open={open} onClose={onClose} title="현장 등록">
+      <form onSubmit={submit} className="stack" style={{ gap: 18 }}>
+        <p className="note note--warn">
+          명단에 없는 참가자를 추가합니다. 등록된 인원은 명단에 <b>현장</b> 표시가 붙습니다.
         </p>
 
         <Input
-          label="이름 *"
+          label="이름"
+          required
           value={form.name}
           onChange={set('name')}
           placeholder="홍길동"
@@ -91,28 +93,18 @@ export default function WalkinModal({
           autoFocus
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Input
-              label="LC 번호 *"
-              value={form.lc}
-              onChange={set('lc')}
-              placeholder={`1 ~ ${maxLc}`}
-              inputMode="numeric"
-              autoComplete="off"
-            />
-            {day && (
-              <p className="mt-1 text-xs font-semibold text-blue-600">
-                {lcLabel(lcNum)} · {day}일차
-              </p>
-            )}
-            {form.lc && !lcValid && (
-              <p className="mt-1 text-xs font-semibold text-red-600">
-                1 ~ {maxLc} 사이로 입력해주세요
-              </p>
-            )}
-          </div>
-
+        <div className="grid-2">
+          <Input
+            label="LC 번호"
+            required
+            value={form.lc}
+            onChange={set('lc')}
+            placeholder={`1 ~ ${maxLc}`}
+            inputMode="numeric"
+            autoComplete="off"
+            hint={day ? `${lcLabel(lcNum)} · ${day}일차` : undefined}
+            error={form.lc && !lcValid ? `1 ~ ${maxLc} 사이로 입력해주세요` : undefined}
+          />
           <Input
             label="계열"
             value={form.dept}
@@ -123,42 +115,30 @@ export default function WalkinModal({
         </div>
 
         <Input
-          label="학번"
-          value={form.studentId}
-          onChange={set('studentId')}
-          placeholder="2024001234"
-          inputMode="numeric"
-          autoComplete="off"
-          maxLength={10}
-        />
-
-        <Input
           label="연락처"
           value={form.phone}
           onChange={set('phone')}
           placeholder="01012345678"
           inputMode="numeric"
           autoComplete="off"
-          hint="학번·연락처는 선택 사항이지만, 나중에 확인이 필요할 수 있어 받아두면 좋습니다."
+          hint="선택 사항이지만 나중에 연락할 일이 생길 수 있어 받아두면 좋습니다."
         />
 
-        <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-          <input
-            type="checkbox"
-            checked={form.checkInNow}
-            onChange={set('checkInNow')}
-            className="h-5 w-5 rounded border-slate-300 accent-emerald-600"
-          />
-          <span className="text-sm font-semibold text-slate-700">
-            추가하면서 바로 접수 처리하기
+        <label className={`check ${form.checkInNow ? 'is-on' : ''}`}>
+          <input type="checkbox" checked={form.checkInNow} onChange={set('checkInNow')} />
+          <span>
+            <span className="check__title">추가하면서 바로 접수 처리</span>
+            <span className="check__desc">
+              지금 현장에 와 있는 참가자라면 켜두세요.
+            </span>
           </span>
         </label>
 
-        <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+        <div className="row" style={{ gap: 10 }}>
+          <Button type="button" variant="ghost" onClick={onClose} style={{ flex: 1 }}>
             취소
           </Button>
-          <Button type="submit" variant="green" loading={saving} className="flex-[2]">
+          <Button type="submit" variant="solid" loading={saving} style={{ flex: 2 }}>
             {form.checkInNow ? '등록하고 접수' : '등록만 하기'}
           </Button>
         </div>
