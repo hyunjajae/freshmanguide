@@ -98,9 +98,13 @@ alter table sessions     enable row level security;
 --  (인자가 달라지면 예전 함수가 남아 "어느 걸 부를지 모르겠다" 오류가 납니다)
 -- ============================================================================
 
--- 예전 app_auth 는 두 번째 인자가 boolean 이었습니다.
--- 지우지 않으면 app_auth(토큰) 을 부를 때 "어느 함수인지 모르겠다" 오류가 납니다.
+-- 예전에는 이 함수 이름이 app_auth 였고, 두 번째 인자가 boolean 이었습니다.
+-- 옛 함수가 남아 있으면 새 함수와 겹쳐서
+--   42725 "Could not choose the best candidate function"
+-- 오류가 나고 명단 조회가 통째로 멈춥니다. 세 형태 모두 지웁니다.
 drop function if exists app_auth(uuid, boolean);
+drop function if exists app_auth(uuid, text);
+drop function if exists app_auth(uuid);
 
 drop function if exists app_add_walkin(uuid, text, text, int, text, boolean, text);
 drop function if exists app_add_walkin(uuid, text, text, int, text, boolean);
@@ -126,7 +130,7 @@ $$;
 --        'FG'      → 로그인만 되어 있으면 통과
 --        'ADMIN'   → 접수처 또는 운영자
 --        'MANAGER' → 운영자만
-create or replace function app_auth(p_token uuid, p_min_role text default 'FG')
+create or replace function app_require(p_token uuid, p_min_role text default 'FG')
 returns accounts
 language plpgsql
 security definer
@@ -159,6 +163,11 @@ begin
   return v_acc;
 end;
 $$;
+
+
+-- 이 함수는 계정 정보를 그대로 돌려주므로 브라우저에서 직접 못 부르게 막습니다.
+-- (아래 security definer 함수들은 소유자 권한으로 돌기 때문에 그대로 쓸 수 있습니다)
+revoke all on function app_require(uuid, text) from public, anon, authenticated;
 
 
 -- 4-2. 로그인
@@ -224,7 +233,7 @@ declare
   v_acc    accounts%rowtype;
   v_result json;
 begin
-  v_acc := app_auth(p_token);
+  v_acc := app_require(p_token);
 
   if v_acc.role in ('MANAGER', 'ADMIN') then
     select coalesce(json_agg(t order by t.lc, t.name), '[]'::json) into v_result
@@ -257,7 +266,7 @@ as $$
 declare
   v_row participants%rowtype;
 begin
-  perform app_auth(p_token, 'ADMIN');
+  perform app_require(p_token, 'ADMIN');
 
   -- 아직 미접수인 경우에만 업데이트 → 두 창구에서 동시에 눌러도 안전
   update participants
@@ -293,7 +302,7 @@ as $$
 declare
   v_row participants%rowtype;
 begin
-  perform app_auth(p_token, 'ADMIN');
+  perform app_require(p_token, 'ADMIN');
 
   update participants
      set checked_in_at = null
@@ -326,7 +335,7 @@ as $$
 declare
   v_row participants%rowtype;
 begin
-  perform app_auth(p_token, 'ADMIN');
+  perform app_require(p_token, 'ADMIN');
 
   if btrim(coalesce(p_name, '')) = '' then
     return json_build_object('ok', false, 'message', '이름을 입력해주세요.');
@@ -362,7 +371,7 @@ as $$
 declare
   v_result json;
 begin
-  perform app_auth(p_token);
+  perform app_require(p_token);
 
   select coalesce(json_agg(t order by t.lc), '[]'::json) into v_result
     from (
@@ -397,7 +406,7 @@ as $$
 declare
   v_count int;
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   if p_replace then
     delete from participants;
@@ -434,7 +443,7 @@ as $$
 declare
   v_count int;
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   if p_replace then
     delete from accounts where role = 'FG';
@@ -476,7 +485,7 @@ as $$
 declare
   v_result json;
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   select coalesce(json_agg(t order by t.role, t.login_id), '[]'::json) into v_result
     from (select id, role, login_id, login_key, lcs from accounts) t;
@@ -500,7 +509,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   if p_role not in ('MANAGER', 'ADMIN', 'FG') then
     return json_build_object('ok', false, 'message', '역할이 올바르지 않습니다.');
@@ -531,7 +540,7 @@ declare
   v_role       text;
   v_left       int;
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   select role into v_role from accounts where id = p_id;
   if not found then
@@ -559,7 +568,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform app_auth(p_token, 'MANAGER');
+  perform app_require(p_token, 'MANAGER');
 
   insert into settings (key, value) values (p_key, p_value)
   on conflict (key) do update set value = excluded.value;
@@ -594,5 +603,27 @@ on conflict (role, lower(btrim(login_id))) do nothing;
 
 
 -- ============================================================================
---  완료!
+--  설치 확인
+--  아래 결과가 "설치 완료" 로 나와야 정상입니다.
+--  Run 을 눌렀는데 이 표가 안 보이면 위쪽 어딘가에서 멈춘 것이니
+--  빨간 오류 메시지를 확인하세요.
 -- ============================================================================
+
+with f as (
+  select proname
+    from pg_proc
+   where pronamespace = 'public'::regnamespace
+     and proname ~ '^app_'
+)
+select
+  case
+    when (select count(*) from f where proname = 'app_auth') > 0
+      then '옛 app_auth 함수가 남아 있습니다 — 위쪽 drop 문이 실행되지 않았습니다'
+    when (select count(*) from f) < 15
+      then '함수가 덜 만들어졌습니다 — 파일을 끝까지 붙여넣었는지 확인하세요'
+    else '설치 완료'
+  end                                                    as 상태,
+  (select count(*) from f)                               as 함수개수,
+  (select count(*) from accounts where role = 'MANAGER') as 운영자계정,
+  (select count(*) from accounts where role = 'ADMIN')   as 접수처계정,
+  (select count(*) from participants)                    as 참가자수;
