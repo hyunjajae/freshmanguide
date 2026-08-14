@@ -38,11 +38,15 @@ export const Icon = {
       <path d="M16.8 4.5v4h-4" />
     </svg>
   ),
+  // 톱니바퀴. 예전에는 가운데 점 + 사방으로 뻗은 선이라 '해' 처럼 보였습니다.
+  // 이제 톱니 8개가 달린 고리를 칠하고 가운데를 뚫습니다(evenodd).
   settings: (p) => (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7"
-         strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <circle cx="10" cy="10" r="2.6" />
-      <path d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9 4.5 4.5" />
+    <svg viewBox="0 0 20 20" fill="currentColor" {...p}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.46 3.58 L8.67 1.6 L11.33 1.6 L11.54 3.58 L13.45 4.37 L15 3.12 L16.88 5 L15.63 6.55 L16.42 8.46 L18.4 8.67 L18.4 11.33 L16.42 11.54 L15.63 13.45 L16.88 15 L15 16.88 L13.45 15.63 L11.54 16.42 L11.33 18.4 L8.67 18.4 L8.46 16.42 L6.55 15.63 L5 16.88 L3.12 15 L4.37 13.45 L3.58 11.54 L1.6 11.33 L1.6 8.67 L3.58 8.46 L4.37 6.55 L3.12 5 L5 3.12 L6.55 4.37 Z M13.1 10 A3.1 3.1 0 1 0 6.9 10 A3.1 3.1 0 1 0 13.1 10 Z"
+      />
     </svg>
   ),
   plus: (p) => (
