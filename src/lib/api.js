@@ -63,6 +63,9 @@ export const getStats = (token) => rpc('app_stats', { p_token: token })
 export const uploadParticipants = (token, rows, replace) =>
   rpc('app_upload_participants', { p_token: token, p_rows: rows, p_replace: replace })
 
+export const deleteParticipant = (token, id) =>
+  rpc('app_delete_participant', { p_token: token, p_id: id })
+
 export const uploadFgAccounts = (token, rows, replace) =>
   rpc('app_upload_fg_accounts', { p_token: token, p_rows: rows, p_replace: replace })
 

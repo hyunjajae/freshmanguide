@@ -217,6 +217,10 @@ export default function App() {
     setRoster((prev) => [...prev, participant])
   }, [])
 
+  const removeParticipant = useCallback((id) => {
+    setRoster((prev) => prev.filter((p) => p.id !== id))
+  }, [])
+
   // ── 운영자 확인 ───────────────────────────────────────────────────
   // 관리 화면은 접수처 계정만으로는 못 들어갑니다. 별도 계정을 한 번 더 확인합니다.
   const openManage = () => setGateOpen(true)
@@ -258,6 +262,7 @@ export default function App() {
     refreshRoster,
     patchParticipant,
     addParticipant,
+    removeParticipant,
     onLogout: () => handleLogout(),
     onError: handleError,
     showToast,

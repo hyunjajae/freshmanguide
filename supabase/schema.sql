@@ -429,6 +429,30 @@ end;
 $$;
 
 
+-- 5-1-b. 참가자 한 명 삭제
+--        잘못 올라간 사람을 정리할 때 씁니다. 되돌릴 수 없습니다.
+create or replace function app_delete_participant(p_token uuid, p_id uuid)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row participants%rowtype;
+begin
+  perform app_require(p_token, 'MANAGER');
+
+  delete from participants where id = p_id returning * into v_row;
+
+  if not found then
+    return json_build_object('ok', false, 'message', '참가자를 찾을 수 없습니다.');
+  end if;
+
+  return json_build_object('ok', true, 'participant', to_json(v_row));
+end;
+$$;
+
+
 -- 5-2. FG 계정 업로드 — 접수처·운영자 계정은 건드리지 않습니다
 create or replace function app_upload_fg_accounts(
   p_token   uuid,
@@ -619,7 +643,7 @@ select
   case
     when (select count(*) from f where proname = 'app_auth') > 0
       then '옛 app_auth 함수가 남아 있습니다 — 위쪽 drop 문이 실행되지 않았습니다'
-    when (select count(*) from f) < 15
+    when (select count(*) from f) < 16
       then '함수가 덜 만들어졌습니다 — 파일을 끝까지 붙여넣었는지 확인하세요'
     else '설치 완료'
   end                                                    as 상태,

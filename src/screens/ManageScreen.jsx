@@ -6,9 +6,11 @@ import { Button, Icon, Input } from '../components/UI'
 import ParticipantUpload from './ParticipantUpload'
 import AccountsPanel from './AccountsPanel'
 import RosterExport from './RosterExport'
+import RosterManage from './RosterManage'
 
 const TABS = [
-  { id: 'participants', label: '참가자 명단' },
+  { id: 'roster', label: '명단' },
+  { id: 'upload', label: '업로드' },
   { id: 'accounts', label: '계정' },
   { id: 'settings', label: '설정' },
 ]
@@ -18,11 +20,12 @@ export default function ManageScreen({
   settings,
   roster,
   refreshRoster,
+  removeParticipant,
   onBack,
   onError,
   showToast,
 }) {
-  const [tab, setTab] = useState('participants')
+  const [tab, setTab] = useState('roster')
 
   return (
     <div className="app">
@@ -54,7 +57,18 @@ export default function ManageScreen({
       </header>
 
       <main className="wrap" style={{ paddingTop: 24, paddingBottom: 60 }}>
-        {tab === 'participants' && (
+        {tab === 'roster' && (
+          <RosterManage
+            session={session}
+            settings={settings}
+            roster={roster}
+            removeParticipant={removeParticipant}
+            onError={onError}
+            showToast={showToast}
+          />
+        )}
+
+        {tab === 'upload' && (
           <div className="stack" style={{ gap: 20 }}>
             <div className="panel row" style={{ justifyContent: 'space-between' }}>
               <span className="section-head__title">현재 등록된 참가자</span>
