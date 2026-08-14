@@ -168,6 +168,20 @@ update accounts set login_key = '접수처_진짜비밀번호'
 
 > 행사 **최소 하루 전**에 배포하고, 실제 폰으로 로그인까지 해보세요.
 
+### ⑤ 서버 자동 깨우기 설정 (한 번만)
+
+무료 Supabase는 일주일쯤 안 쓰면 잠듭니다. `.github/workflows/keep-alive.yml` 이
+3일마다 자동으로 깨워주는데, 저장소 Secrets 두 개가 필요합니다.
+
+GitHub 저장소 → **Settings → Secrets and variables → Actions → New repository secret**
+
+| 이름 | 값 |
+| --- | --- |
+| `SUPABASE_URL` | `.env.local` 의 `VITE_SUPABASE_URL` 과 같은 값 |
+| `SUPABASE_ANON_KEY` | `.env.local` 의 `VITE_SUPABASE_ANON_KEY` 와 같은 값 |
+
+등록 후 **Actions** 탭 → **Supabase 깨워두기** → **Run workflow** 로 한 번 눌러 확인하세요.
+
 ---
 
 ## 3. 화면별 기능

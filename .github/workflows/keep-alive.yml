@@ -1,0 +1,80 @@
+# Supabase 잠들지 않게 하기
+# ---------------------------------------------------------------------------
+# 무료 요금제는 일주일쯤 아무도 안 쓰면 데이터베이스가 자동으로 잠깁니다.
+# 잠기면 사이트가 아예 안 열려서, 행사 당일 아침에 발견하면 큰일입니다.
+#
+# 이 파일은 GitHub이 대신 3일마다 한 번씩 사이트 데이터베이스를 톡 건드려서
+# "아직 쓰는 중" 이라고 알려줍니다. 사람이 할 일은 없습니다.
+#
+# ⚙️ 처음 한 번만 해주세요 (README / 인수인계.md 참고)
+#    GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret
+#      이름: SUPABASE_URL       값: https://xxxxx.supabase.co
+#      이름: SUPABASE_ANON_KEY  값: eyJhbGciOi... (anon public 키)
+# ---------------------------------------------------------------------------
+
+name: Supabase 깨워두기
+
+on:
+  schedule:
+    # 3일마다 한 번 (UTC 0시 = 한국 오전 9시)
+    - cron: '0 0 */3 * *'
+  # 버튼으로 직접 돌려볼 수도 있습니다 (Actions 탭 → Run workflow)
+  workflow_dispatch:
+
+# 아래 heartbeat 커밋을 위해 쓰기 권한이 필요합니다
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 가져오기
+        uses: actions/checkout@v4
+
+      - name: Supabase 깨우기
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL 과 SUPABASE_ANON_KEY 를 저장소 Secrets 에 등록해주세요."
+            echo "Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+
+          # 설정값을 읽는 가장 가벼운 호출입니다. 개인정보는 오가지 않습니다.
+          code=$(curl -s -o /tmp/out.txt -w "%{http_code}" \
+            -X POST "${SUPABASE_URL%/}/rest/v1/rpc/app_settings" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            -d '{}')
+
+          echo "HTTP $code"
+          cat /tmp/out.txt
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Supabase 응답이 정상이 아닙니다 (HTTP $code). 프로젝트가 이미 잠겼을 수 있으니 대시보드에서 Resume 을 눌러주세요."
+            exit 1
+          fi
+          echo "::notice::Supabase 정상 — 깨어 있습니다."
+
+      # GitHub은 저장소에 60일 동안 아무 변화가 없으면 이런 자동 작업을 꺼버립니다.
+      # 날짜만 적힌 파일을 갱신해서 "이 저장소는 살아있다" 고 알려둡니다.
+      - name: 활동 기록 남기기
+        run: |
+          mkdir -p .github
+          date -u '+%Y-%m-%d %H:%M UTC' > .github/last-ping.txt
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "변경 없음 — 건너뜁니다."
+          else
+            git add .github/last-ping.txt
+            git commit -m "chore: keep-alive $(date -u '+%Y-%m-%d')"
+            git push
+          fi
