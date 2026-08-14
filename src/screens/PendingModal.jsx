@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { lcLabel, lcRangeOfDay, formatPhone } from '../lib/format'
+import { downloadCsv, today } from '../lib/download'
 import { Button, Empty, Modal, Tag } from '../components/UI'
 
 export default function PendingModal({ open, onClose, roster, settings, showToast }) {
@@ -52,24 +53,12 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
     }
   }
 
-  const downloadCsv = () => {
-    const header = '이름,LC,계열,연락처\n'
-    const body = pending
-      .map((p) =>
-        [p.name, lcLabel(p.lc), p.dept || '', formatPhone(p.phone) || '']
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-          .join(',')
-      )
-      .join('\n')
-
-    // 엑셀에서 한글이 깨지지 않도록 BOM 을 붙입니다
-    const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `미접수자_${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+  const exportCsv = () => {
+    downloadCsv(
+      `미접수자_${today()}`,
+      ['이름', 'LC', '계열', '연락처'],
+      pending.map((p) => [p.name, lcLabel(p.lc), p.dept || '', formatPhone(p.phone) || ''])
+    )
     showToast('CSV 파일을 내려받았습니다.', 'success')
   }
 
@@ -140,7 +129,7 @@ export default function PendingModal({ open, onClose, roster, settings, showToas
             <Button variant="ghost" size="sm" onClick={copyList}>
               복사
             </Button>
-            <Button variant="ghost" size="sm" onClick={downloadCsv}>
+            <Button variant="ghost" size="sm" onClick={exportCsv}>
               CSV
             </Button>
           </div>

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import * as api from '../lib/api'
 import { parseTable } from '../lib/csv'
 import { lcLabel } from '../lib/format'
+import { josa } from '../lib/korean'
 import { Button, Empty, Input, Spinner, Tag } from '../components/UI'
 
 export default function AccountsPanel({ session, settings, onError, showToast }) {
@@ -32,6 +33,7 @@ export default function AccountsPanel({ session, settings, onError, showToast })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const managers = useMemo(() => (accounts || []).filter((a) => a.role === 'MANAGER'), [accounts])
   const admins = useMemo(() => (accounts || []).filter((a) => a.role === 'ADMIN'), [accounts])
   const fgs = useMemo(() => (accounts || []).filter((a) => a.role === 'FG'), [accounts])
 
@@ -60,6 +62,7 @@ export default function AccountsPanel({ session, settings, onError, showToast })
       {tab === 'list' ? (
         <AccountList
           session={session}
+          managers={managers}
           admins={admins}
           fgs={fgs}
           maxLc={maxLc}
@@ -83,8 +86,35 @@ export default function AccountsPanel({ session, settings, onError, showToast })
   )
 }
 
+/** 비밀번호·학번을 보여주는 칩. 누르면 복사됩니다.
+ *  운영자만 볼 수 있는 화면이라 가리지 않고 그대로 보여줍니다
+ *  (FG에게 "네 학번이 로그인 비번이야" 라고 알려줘야 하는 일이 잦습니다) */
+function Secret({ value, label, onCopy }) {
+  if (!value) return <span className="secret secret--empty">{label} 없음</span>
+  return (
+    <button
+      type="button"
+      className="secret"
+      title="눌러서 복사"
+      onClick={() => onCopy(value, label)}
+    >
+      <i>{label}</i>
+      <b>{value}</b>
+    </button>
+  )
+}
+
 // ── 계정 목록 + 추가/삭제 ────────────────────────────────────────────
-function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToast }) {
+function AccountList({ session, managers, admins, fgs, maxLc, onChanged, onError, showToast }) {
+  const copyValue = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      showToast(`${josa(label, '을/를')} 복사했습니다.`, 'success')
+    } catch {
+      showToast('복사에 실패했습니다.', 'error')
+    }
+  }
+
   const [form, setForm] = useState({ role: 'ADMIN', loginId: '', loginKey: '', lcs: '' })
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -143,7 +173,7 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
     }
   }
 
-  const isAdmin = form.role === 'ADMIN'
+  const isFg = form.role === 'FG'
 
   return (
     <div className="stack" style={{ gap: 26 }}>
@@ -155,35 +185,39 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
           </div>
 
           <div className="chips">
-            {['ADMIN', 'FG'].map((r) => (
+            {[
+              ['MANAGER', '운영자'],
+              ['ADMIN', '접수처'],
+              ['FG', '진행 FG'],
+            ].map(([r, label]) => (
               <button
                 key={r}
                 type="button"
                 className={`chip ${form.role === r ? 'is-on' : ''}`}
                 onClick={() => setForm((f) => ({ ...f, role: r }))}
               >
-                {r === 'ADMIN' ? '접수처' : '진행 FG'}
+                {label}
               </button>
             ))}
           </div>
 
           <div className="grid-2">
             <Input
-              label={isAdmin ? '아이디' : '성함'}
+              label={isFg ? '성함' : '아이디'}
               value={form.loginId}
               onChange={(e) => setForm((f) => ({ ...f, loginId: e.target.value }))}
               autoComplete="off"
             />
             <Input
-              label={isAdmin ? '비밀번호' : '학번'}
+              label={isFg ? '학번' : '비밀번호'}
               value={form.loginKey}
               onChange={(e) => setForm((f) => ({ ...f, loginKey: e.target.value }))}
               autoComplete="off"
-              inputMode={isAdmin ? 'text' : 'numeric'}
+              inputMode={isFg ? 'numeric' : 'text'}
             />
           </div>
 
-          {!isAdmin && (
+          {isFg && (
             <Input
               label="담당 LC"
               value={form.lcs}
@@ -203,7 +237,30 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
         </div>
       </form>
 
-      {/* 관리자 -------------------------------------------------------- */}
+      {/* 운영자 -------------------------------------------------------- */}
+      <section>
+        <div className="section-head">
+          <span className="section-head__title">운영자 계정</span>
+          <span className="section-head__count">{managers.length}</span>
+        </div>
+        <div className="list">
+          {managers.map((a) => (
+            <div key={a.id} className="list__row">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{a.login_id}</div>
+                <div style={{ marginTop: 5 }}>
+                  <Secret value={a.login_key} label="비밀번호" onCopy={copyValue} />
+                </div>
+              </div>
+              <Button variant="danger-quiet" size="sm" onClick={() => remove(a)}>
+                삭제
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 접수처 -------------------------------------------------------- */}
       <section>
         <div className="section-head">
           <span className="section-head__title">접수처 계정</span>
@@ -212,12 +269,15 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
         <div className="list">
           {admins.map((a) => (
             <div key={a.id} className="list__row">
-              <span style={{ fontWeight: 700 }}>{a.login_id}</span>
-              <span className="row-end">
-                <Button variant="danger-quiet" size="sm" onClick={() => remove(a)}>
-                  삭제
-                </Button>
-              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{a.login_id}</div>
+                <div style={{ marginTop: 5 }}>
+                  <Secret value={a.login_key} label="비밀번호" onCopy={copyValue} />
+                </div>
+              </div>
+              <Button variant="danger-quiet" size="sm" onClick={() => remove(a)}>
+                삭제
+              </Button>
             </div>
           ))}
         </div>
@@ -252,7 +312,10 @@ function AccountList({ session, admins, fgs, maxLc, onChanged, onError, showToas
             {filteredFgs.map((a) => (
               <div key={a.id} className="list__row" style={{ alignItems: 'flex-start' }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700 }}>{a.login_id}</div>
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700 }}>{a.login_id}</span>
+                    <Secret value={a.login_key} label="학번" onCopy={copyValue} />
+                  </div>
                   <div className="row" style={{ gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                     {(a.lcs || []).length === 0 ? (
                       <Tag tone="bad">담당 LC 없음</Tag>

@@ -29,3 +29,22 @@ export function isChosungQuery(text) {
   const t = String(text || '').replace(/\s/g, '')
   return t.length > 0 && /^[ㄱ-ㅎ]+$/.test(t)
 }
+
+/** 마지막 글자에 받침이 있는지 (학번 → true, 비밀번호 → false) */
+function hasBatchim(word) {
+  const s = String(word || '')
+  if (!s) return false
+  const code = s.charCodeAt(s.length - 1)
+  if (code < HANGUL_START || code > HANGUL_END) return false // 한글이 아니면 판단 불가
+  return (code - HANGUL_START) % 28 !== 0
+}
+
+/**
+ * 조사를 받침에 맞게 붙여줍니다.
+ *   josa('학번', '을/를')     → '학번을'
+ *   josa('비밀번호', '을/를') → '비밀번호를'
+ */
+export function josa(word, pair) {
+  const [withBatchim, withoutBatchim] = pair.split('/')
+  return word + (hasBatchim(word) ? withBatchim : withoutBatchim)
+}

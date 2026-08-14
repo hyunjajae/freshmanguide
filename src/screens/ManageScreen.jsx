@@ -5,6 +5,7 @@ import * as api from '../lib/api'
 import { Button, Icon, Input } from '../components/UI'
 import ParticipantUpload from './ParticipantUpload'
 import AccountsPanel from './AccountsPanel'
+import RosterExport from './RosterExport'
 
 const TABS = [
   { id: 'participants', label: '참가자 명단' },
@@ -62,6 +63,8 @@ export default function ManageScreen({
                 <span style={{ fontSize: 13, color: 'var(--muted)', marginLeft: 4 }}>명</span>
               </span>
             </div>
+
+            <RosterExport roster={roster} settings={settings} showToast={showToast} />
 
             <ParticipantUpload
               session={session}

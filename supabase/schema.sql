@@ -464,7 +464,9 @@ end;
 $$;
 
 
--- 5-3. 계정 목록 조회 — 비밀번호는 내려주지 않습니다
+-- 5-3. 계정 목록 조회
+--      운영자 화면에서 접수처 비밀번호와 FG 학번을 바로 확인해야 해서 login_key 도 함께 내려줍니다.
+--      (운영자 로그인을 통과해야만 호출되고, 접수처·FG 토큰으로는 FORBIDDEN 입니다)
 create or replace function app_list_accounts(p_token uuid)
 returns json
 language plpgsql
@@ -477,7 +479,7 @@ begin
   perform app_auth(p_token, 'MANAGER');
 
   select coalesce(json_agg(t order by t.role, t.login_id), '[]'::json) into v_result
-    from (select id, role, login_id, lcs from accounts) t;
+    from (select id, role, login_id, login_key, lcs from accounts) t;
 
   return v_result;
 end;
